@@ -1,0 +1,7 @@
+build/
+dist/
+*.pyc
+td.egg-info/
+MANIFEST.in
+.idea/
+td/data/todos.db

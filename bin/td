@@ -1,0 +1,411 @@
+#!/usr/local/env python
+
+
+# System Imports
+from docopt import docopt
+
+
+# Local Imports
+from td.models import Todo, Project, DB_PATH, db
+from td.utils import bcolors
+import sys
+import os
+import yaml
+from re import search
+
+import peewee
+from td import data
+
+# Setup CLI
+usage = """A Simple Project based todo manager
+
+Usage:
+    td new CONTENT...
+    td done <todo>
+    td undo <todo>
+    td rm <todo>
+    td revert <todo>
+    td list [<project>] [--all] [--removed]
+    td pro list
+    td pro new <project_name>
+    td pro rm <project_name>
+    td conf set dp <dp>
+    td reboot
+    td init
+    td debug
+
+"""
+
+args = docopt(usage)
+
+# Setup CONF
+DATA_ROOT = os.path.dirname(data.__file__)
+CONF_FILE = os.path.join(DATA_ROOT, 'conf.yml')
+DB_FILE = os.path.join(DATA_ROOT, 'todos.db')
+
+try:
+    with open(CONF_FILE, 'r') as cf:
+
+        CONF = yaml.load(cf)
+
+except IOError:
+    print "Could not open config file at: {}".format(CONF_FILE)
+
+
+### Helpers ###
+def print_todo(todo):
+
+
+    space = ''
+
+    # Correct Formatting
+    if todo.id > 9:
+        space = '  '
+    elif todo.id > 99:
+        space = ' '
+    else:
+        space = '   '
+
+    sys.stdout.write('[{}]{}'.format(todo.id, space))
+
+    if todo.status == 'not done':
+        sys.stdout.write('{}{}{}'.format(bcolors.FAIL,
+                                         'PENDING:',
+                                         bcolors.ENDC))
+
+        sys.stdout.write(' {}\n'.format(todo.content))
+    elif todo.status == 'done':
+        sys.stdout.write('{}{}{}'.format(bcolors.OKGREEN,
+                                         '   DONE:',
+                                         bcolors.ENDC))
+        sys.stdout.write(' {}\n'.format(todo.content))
+
+
+def get_detault_project():
+    return CONF['default_project']
+
+def set_default_project(dp):
+
+    CONF['default_project'] = dp
+
+    with open(CONF_FILE, 'w') as cf:
+        cf.write(yaml.dump(CONF, default_flow_style=False))
+
+    print 'Default project set to {}'.format(CONF['default_project'])
+
+def get_pro_tid(s):
+    project = search(r'(.*):.*', args['<todo>']).group(1)
+    tid = search(r'.*:(.*)', args['<todo>']).group(1)
+
+    if project and tid:
+        return project, tid
+
+
+### Functions ###
+def new_todo(args, project=get_detault_project()):
+
+    print DB_PATH
+    print DB_FILE
+
+    # Check to see if project was added via project: content
+    project_provided = False
+
+    # Check if project was supplied
+    if ':' in args['CONTENT'][0]:
+        project_provided = True
+
+        # Get the project name
+        project = search(r'(.*):.*', args['CONTENT'][0]).group(1)
+
+        content = ' '.join(args['CONTENT'][1:])
+
+    else:
+        content = ' '.join(args['CONTENT'])
+
+    # Check if project exists.
+    try:
+        p = Project.get(Project.name == project)
+
+    except peewee.DoesNotExist:
+        # If it doesn't add it.
+        p = Project(name=project)
+        p.save()
+
+    # Create td under default project
+    t = Todo(project=project, content=content,
+             status='not done')
+
+    t.save()
+
+    print 'Todo added under project {}.'.format(project)
+
+# Remove _Todo
+def rm_todo(args):
+    # td rm gogo:49
+    # Would remove _todo #49 under project gogo
+
+    project_provided = False
+
+    # Check if project was supplied
+    if ':' in args['<todo>']:
+        project_provided = True
+
+    # If project supplied, remove _todo id under that project
+    if project_provided:
+        pro, tid = get_pro_tid(args['<todo>'])
+
+    # Else remove tid under default project
+    else:
+        pro = get_detault_project()
+        tid = args['<todo>']
+
+    # Check for remove all done option
+    if args['<todo>'] == 'done':
+        # Remove all marked as 'done'
+        q = Todo.update(visible=False).where(Todo.status == 'done')
+        count = q.execute()
+
+        print 'Deleted {} done todos.'.format(count)
+
+    else:
+        todo = Todo.get(Todo.id == tid, Todo.project == pro)
+        todo.visible = False
+        todo.save()
+
+        print 'Deleted Todo #{} from Project {}.'.format(tid, pro)
+
+# Revert Todos maybe a bug
+def revert_todo(args):
+
+    if args['<todo>'] == 'removed':
+        # Revert all removed
+        q = Todo.update(visible=True).where(Todo.visible == False)
+        count = q.execute()
+
+        print 'Reverted {} todos'.format(count)
+
+    else:
+        tid = args['<todo>']
+        q = Todo.update(visible=True).where(Todo.id == tid)
+        count = q.execute()
+
+        print 'Reverted {} todos'.format(count)
+
+# Mark _Todo as done
+def done_todo(args):
+    # td done gogo:79 would
+
+    project_provided = False
+
+    # Check if project was supplied
+    if ':' in args['<todo>']:
+        project_provided = True
+
+    # If project supplied, remove _todo id under that project
+    if project_provided:
+        pro, tid = get_pro_tid(args['<todo>'])
+
+    # Else remove tid under default project
+    else:
+        pro = get_detault_project()
+        tid = args['<todo>']
+
+    todo = Todo.get(Todo.id == tid, Todo.project == pro)
+    todo.status = 'done'
+
+    todo.save()
+
+    print 'Todo {} marked as done.'.format(args['<todo>'])
+
+
+# Undo a done _Todo
+def undo_todo(args):
+    # td done gogo:79 would
+
+    project_provided = False
+
+    # Check if project was supplied
+    if ':' in args['<todo>']:
+        project_provided = True
+
+    # If project supplied, remove _todo id under that project
+    if project_provided:
+        pro, tid = get_pro_tid(args['<todo>'])
+
+    # Else remove tid under default project
+    else:
+        pro = get_detault_project()
+        tid = args['<todo>']
+
+    todo = Todo.get(Todo.id == tid, Todo.project == pro)
+    todo.status = 'not done'
+
+    todo.save()
+
+    print 'Todo {} marked as not done.'.format(args['<todo>'])
+
+def new_pro(args):
+    project = Project(name=args['<project_name>'])
+    project.save()
+    print "Project {} created.".format(project.name)
+
+
+# Remove project
+def rm_pro(args):
+    name = args['<project_name>']
+
+    ans = raw_input("Sure you want to remove project '{}'? (y/n): ".format(
+        name
+    ))
+
+    if ans.startswith('y'):
+
+        q = Project.delete().where(Project.name == name)
+        q.execute()
+
+        # Todo: delete all todo associated with this project
+        print 'Project {} deleted.'.format(name)
+    else:
+        print 'Aborting deletion of {}'.format(name)
+
+
+def list_todo(args, project=get_detault_project()):
+    try:
+        if args['--all']:
+            projects = Project.select()
+
+        else:
+            projects = Project.select().where(Project.name == project)
+    except peewee.OperationalError:
+        print "You should try running 'td init' first."
+
+    longest_pname = 0
+    header_width = 60
+
+    try:
+        for p in projects:
+
+            if len(p.name) > longest_pname:
+                longest_pname = len(p.name)
+
+            if args['--removed']:
+                # Select all todos even those removed
+                todos = Todo.select().where(Todo.project == p.name)
+
+            else:
+                # Select all unremoved todos
+                todos = Todo.select().where(Todo.project == p.name,
+                                            Todo.visible == True)
+
+            # Todo compensate header for different project name length
+
+            header = "= {pname} {header}{compen}"
+            headerlength = len(header) - 2 - 2 - 2
+            namelength = len(p.name)
+            complen = longest_pname - namelength
+            headercompensation = "{}".format('=' * complen)
+
+            print header.format(pname=p.name, header='=' * header_width,
+                                compen=headercompensation)
+
+            for todo in todos:
+                print_todo(todo)
+
+    except peewee.OperationalError:
+        print "You should try running 'td init' first."
+
+def list_pro(args):
+
+    projects = Project.select()
+    for p in projects:
+        if p.name == get_detault_project():
+            print '* {}'.format(p.name)
+        else:
+            print '  {}'.format(p.name)
+
+def init_db():
+    try:
+        db.create_tables([Todo, Project])
+        print 'Initiated todo database:'
+        print DB_PATH
+    except peewee.OperationalError:
+        print 'The todo database already exists at:'
+        print '    {}'.format(DB_FILE)
+        print 'To Remove it a start a fresh one type:'
+        print "    $ td reboot"
+
+if __name__ == '__main__':
+
+    # New Todo
+    if args['new'] and not args['pro']:
+        if args['<project>']:
+            new_todo(args, project=args['<project>'])
+        else:
+            new_todo(args)
+
+    # Remove _Todo (Mark Invisible)
+    elif args['rm'] and not args['pro']:
+        rm_todo(args)
+
+    # Mark _todo as done (set status = 'done')
+    elif args['done']:
+        done_todo(args)
+
+    # Mark _todo as not done (set status = 'not done')
+    elif args['undo']:
+        undo_todo(args)
+
+    # Revert Todos (Make visible)
+    elif args['revert']:
+        revert_todo(args)
+
+    # List Todos
+    elif args['list'] and not args['pro']:
+        if args['<project>']:
+            list_todo(args, project=args['<project>'])
+        else:
+            list_todo(args)
+
+    # Create new project
+    elif args['pro'] and args['new']:
+        new_pro(args)
+
+    # Remove project
+    elif args['pro'] and args['rm']:
+        rm_pro(args)
+
+    # List projects
+    elif args['pro'] and args['list']:
+        list_pro(args)
+
+    # Set default Project
+    elif args['conf'] and args['set'] and args['dp']:
+        set_default_project(args['<dp>'])
+
+    # Reset everything
+    elif args['reboot']:
+        ans = raw_input('Are you sure you want to reboot the database?(y/n): ')
+
+        if ans.startswith('y'):
+            os.remove(DB_FILE)
+
+            init_db()
+
+            # Set default project to 'default'
+            set_default_project('default')
+
+            print 'Rebooted database.'
+
+        else:
+            print 'Aborting.'
+
+    # Init a new todo_ database
+    elif args['init']:
+        init_db()
+
+    # Print debug and paths
+    elif args['debug']:
+        print __file__
+        print DATA_ROOT
+        print "HI THERE"
+        print DB_FILE
