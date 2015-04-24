@@ -104,9 +104,6 @@ def get_pro_tid(s):
 ### Functions ###
 def new_todo(args, project=get_detault_project()):
 
-    print DB_PATH
-    print DB_FILE
-
     # Check to see if project was added via project: content
     project_provided = False
 
