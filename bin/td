@@ -6,7 +6,7 @@ from docopt import docopt
 
 
 # Local Imports
-from td.models import Todo, Project, DB_PATH, db
+from td.models import Todo, Project, db
 from td.utils import bcolors
 import sys
 import os
@@ -14,7 +14,6 @@ import yaml
 from re import search
 
 import peewee
-from td import data
 
 # Setup CLI
 usage = """A Simple Project based todo manager
@@ -23,13 +22,13 @@ Usage:
     td new CONTENT...
     td done <todo>
     td undo <todo>
-    td rm <todo>
-    td revert <todo>
+    td rm (<todo> | --done)
+    td revert (<todo> | --removed)
     td list [<project>] [--all] [--removed]
     td pro list
     td pro new <project_name>
     td pro rm <project_name>
-    td conf set dp <dp>
+    td chp <project_name>
     td reboot
     td init
     td debug
@@ -39,7 +38,7 @@ Usage:
 args = docopt(usage)
 
 # Setup CONF
-DATA_ROOT = os.path.dirname(data.__file__)
+DATA_ROOT = os.path.expanduser('~/.td/')
 CONF_FILE = os.path.join(DATA_ROOT, 'conf.yml')
 DB_FILE = os.path.join(DATA_ROOT, 'todos.db')
 
@@ -84,14 +83,14 @@ def print_todo(todo):
 def get_detault_project():
     return CONF['default_project']
 
-def set_default_project(dp):
+def change_project(dp):
 
     CONF['default_project'] = dp
 
     with open(CONF_FILE, 'w') as cf:
         cf.write(yaml.dump(CONF, default_flow_style=False))
 
-    print 'Default project set to {}'.format(CONF['default_project'])
+    print 'Project changed to {}'.format(CONF['default_project'])
 
 def get_pro_tid(s):
     project = search(r'(.*):.*', args['<todo>']).group(1)
@@ -141,14 +140,10 @@ def rm_todo(args):
     # td rm gogo:49
     # Would remove _todo #49 under project gogo
 
-    project_provided = False
+    # Check to see if project name was provided
+    if args['<todo>'] and ':' in args['<todo>']:
 
-    # Check if project was supplied
-    if ':' in args['<todo>']:
-        project_provided = True
-
-    # If project supplied, remove _todo id under that project
-    if project_provided:
+        # If project supplied, remove _todo id under that project
         pro, tid = get_pro_tid(args['<todo>'])
 
     # Else remove tid under default project
@@ -156,25 +151,26 @@ def rm_todo(args):
         pro = get_detault_project()
         tid = args['<todo>']
 
-    # Check for remove all done option
-    if args['<todo>'] == 'done':
+    if args['--done']:
         # Remove all marked as 'done'
-        q = Todo.update(visible=False).where(Todo.status == 'done')
+        q = Todo.update(visible=False).where(Todo.project == pro,
+                                             Todo.status == 'done')
         count = q.execute()
 
         print 'Deleted {} done todos.'.format(count)
 
-    else:
-        todo = Todo.get(Todo.id == tid, Todo.project == pro)
-        todo.visible = False
-        todo.save()
+    elif args['<todo>']:
+
+        q = Todo.update(visible=False).where(Todo.id == tid,
+                                                Todo.project == pro)
+        count = q.execute()
 
         print 'Deleted Todo #{} from Project {}.'.format(tid, pro)
 
 # Revert Todos maybe a bug
 def revert_todo(args):
 
-    if args['<todo>'] == 'removed':
+    if args['--removed']:
         # Revert all removed
         q = Todo.update(visible=True).where(Todo.visible == False)
         count = q.execute()
@@ -267,46 +263,39 @@ def rm_pro(args):
 
 
 def list_todo(args, project=get_detault_project()):
-    try:
-        if args['--all']:
-            projects = Project.select()
-
-        else:
-            projects = Project.select().where(Project.name == project)
-    except peewee.OperationalError:
-        print "You should try running 'td init' first."
 
     longest_pname = 0
     header_width = 60
 
     try:
-        for p in projects:
 
-            if len(p.name) > longest_pname:
-                longest_pname = len(p.name)
+        if args['--all'] and not args['--removed']:
+            todos = Todo.select().where(Todo.visible == True)
 
-            if args['--removed']:
-                # Select all todos even those removed
-                todos = Todo.select().where(Todo.project == p.name)
+        elif args['--removed'] and not args['--all']:
+            todos = Todo.select().where(Todo.project == project,
+                                        Todo.visible == False)
 
-            else:
-                # Select all unremoved todos
-                todos = Todo.select().where(Todo.project == p.name,
-                                            Todo.visible == True)
+        else:
+            todos = Todo.select().where(Todo.project == project,
+                                        Todo.visible == True)
 
-            # Todo compensate header for different project name length
+        if len(project) > longest_pname:
+            longest_pname = len(project)
 
-            header = "= {pname} {header}{compen}"
-            headerlength = len(header) - 2 - 2 - 2
-            namelength = len(p.name)
-            complen = longest_pname - namelength
-            headercompensation = "{}".format('=' * complen)
+        # Todo compensate header for different project name length
 
-            print header.format(pname=p.name, header='=' * header_width,
-                                compen=headercompensation)
+        header = "= {pname} {header}{compen}"
+        headerlength = len(header) - 2 - 2 - 2
+        namelength = len(project)
+        complen = longest_pname - namelength
+        headercompensation = "{}".format('=' * complen)
 
-            for todo in todos:
-                print_todo(todo)
+        print header.format(pname=project, header='=' * header_width,
+                            compen=headercompensation)
+
+        for todo in todos:
+            print_todo(todo)
 
     except peewee.OperationalError:
         print "You should try running 'td init' first."
@@ -324,7 +313,6 @@ def init_db():
     try:
         db.create_tables([Todo, Project])
         print 'Initiated todo database:'
-        print DB_PATH
     except peewee.OperationalError:
         print 'The todo database already exists at:'
         print '    {}'.format(DB_FILE)
@@ -332,6 +320,13 @@ def init_db():
         print "    $ td reboot"
 
 if __name__ == '__main__':
+
+    # Check if this is the first run
+    if not os.path.exists(DB_FILE):
+        # Try to init database
+        print 'First run, creating ~/.td/todos.db...'
+        init_db()
+
 
     # New Todo
     if args['new'] and not args['pro']:
@@ -376,8 +371,8 @@ if __name__ == '__main__':
         list_pro(args)
 
     # Set default Project
-    elif args['conf'] and args['set'] and args['dp']:
-        set_default_project(args['<dp>'])
+    elif args['chp'] and args['<project_name>']:
+            change_project(args['<project_name>'])
 
     # Reset everything
     elif args['reboot']:
@@ -389,7 +384,7 @@ if __name__ == '__main__':
             init_db()
 
             # Set default project to 'default'
-            set_default_project('default')
+            change_project('default')
 
             print 'Rebooted database.'
 
@@ -404,5 +399,5 @@ if __name__ == '__main__':
     elif args['debug']:
         print __file__
         print DATA_ROOT
-        print "HI THERE"
         print DB_FILE
+        print CONF_FILE

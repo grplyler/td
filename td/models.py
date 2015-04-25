@@ -1,13 +1,14 @@
 from peewee import *
 from datetime import datetime
 import os
-from td import data
 
-DATA_ROOT = os.path.dirname(data.__file__)
+# Setup CONF
+DATA_ROOT = os.path.expanduser('~/.td/')
 CONF_FILE = os.path.join(DATA_ROOT, 'conf.yml')
-DB_PATH = os.path.join(DATA_ROOT, 'todos.db')
+DB_FILE = os.path.join(DATA_ROOT, 'todos.db')
 
-db = SqliteDatabase(DB_PATH)
+
+db = SqliteDatabase(DB_FILE)
 
 
 class Project(Model):
