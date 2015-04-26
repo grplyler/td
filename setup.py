@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 import os
 
 setup(name='td',
-      version='0.2.1',
+      version='0.2.2',
       description='A practical, project based todo manager for all your needs.',
       author='Ryan Plyler',
       author_email='g.r.plyler@gmail.com',

@@ -19,7 +19,7 @@ import peewee
 usage = """A Simple Project based todo manager
 
 Usage:
-    td new CONTENT...
+    td new <content>...
     td done <todo>
     td undo <todo>
     td rm (<todo> | --done)
@@ -57,7 +57,7 @@ def print_todo(todo):
 
     space = ''
 
-    # Correct Formatting
+    # Correct Formatting for Todo ID's
     if todo.id > 9:
         space = '  '
     elif todo.id > 99:
@@ -79,10 +79,11 @@ def print_todo(todo):
                                          bcolors.ENDC))
         sys.stdout.write(' {}\n'.format(todo.content))
 
-
+# Return the default_project from the yaml config in ~/.td/conf.yml
 def get_detault_project():
     return CONF['default_project']
 
+# Change the current working project
 def change_project(dp):
 
     CONF['default_project'] = dp
@@ -90,7 +91,7 @@ def change_project(dp):
     with open(CONF_FILE, 'w') as cf:
         cf.write(yaml.dump(CONF, default_flow_style=False))
 
-    print 'Project changed to {}'.format(CONF['default_project'])
+    print 'Project Changed to {}'.format(CONF['default_project'])
 
 def get_pro_tid(s):
     project = search(r'(.*):.*', args['<todo>']).group(1)
@@ -100,23 +101,28 @@ def get_pro_tid(s):
         return project, tid
 
 
-### Functions ###
+### Functions That Operate on Todos ###
 def new_todo(args, project=get_detault_project()):
 
-    # Check to see if project was added via project: content
+    # Check to see if project was specified in the command:
+    # e.g.: 'todo new work: Setup the new Solr server'
+    # Where 'work:' is the project.
+
     project_provided = False
 
-    # Check if project was supplied
-    if ':' in args['CONTENT'][0]:
+    # Detect the first word of the todo contains ':'
+    if ':' in args['<content>'][0]:
         project_provided = True
 
         # Get the project name
-        project = search(r'(.*):.*', args['CONTENT'][0]).group(1)
+        project = search(r'(.*):.*', args['<content>'][0]).group(1)
 
-        content = ' '.join(args['CONTENT'][1:])
+        # join the todo content into str
+        content = ' '.join(args['<content>'][1:])
 
+    # Otherwise just get the content
     else:
-        content = ' '.join(args['CONTENT'])
+        content = ' '.join(args['<content>'])
 
     # Check if project exists.
     try:
@@ -137,8 +143,8 @@ def new_todo(args, project=get_detault_project()):
 
 # Remove _Todo
 def rm_todo(args):
-    # td rm gogo:49
-    # Would remove _todo #49 under project gogo
+    # Example 1: td rm work:49
+    # Would remove _todo #49 under project work
 
     # Check to see if project name was provided
     if args['<todo>'] and ':' in args['<todo>']:
@@ -167,16 +173,19 @@ def rm_todo(args):
 
         print 'Deleted Todo #{} from Project {}.'.format(tid, pro)
 
-# Revert Todos maybe a bug
+# Revert Todos. Mark todos removed (set to invisible) as unremoved
+# (visible)
 def revert_todo(args):
 
+    # Revert all removed in current project
     if args['--removed']:
-        # Revert all removed
+
         q = Todo.update(visible=True).where(Todo.visible == False)
         count = q.execute()
 
         print 'Reverted {} todos'.format(count)
 
+    # otherwise just revert the tid supplied
     else:
         tid = args['<todo>']
         q = Todo.update(visible=True).where(Todo.id == tid)
@@ -184,9 +193,9 @@ def revert_todo(args):
 
         print 'Reverted {} todos'.format(count)
 
-# Mark _Todo as done
+# Mark Todo as done
 def done_todo(args):
-    # td done gogo:79 would
+    # td done work:79 would
 
     project_provided = False
 
@@ -211,9 +220,10 @@ def done_todo(args):
     print 'Todo {} marked as done.'.format(args['<todo>'])
 
 
-# Undo a done _Todo
+# Undo a done Todo
 def undo_todo(args):
-    # td done gogo:79 would
+    # td done work:79 would
+    # Mark a Todo id in project
 
     project_provided = False
 
@@ -261,7 +271,7 @@ def rm_pro(args):
     else:
         print 'Aborting deletion of {}'.format(name)
 
-
+# List the todos in the current project
 def list_todo(args, project=get_detault_project()):
 
     longest_pname = 0
@@ -370,7 +380,7 @@ if __name__ == '__main__':
     elif args['pro'] and args['list']:
         list_pro(args)
 
-    # Set default Project
+    # Change the current project
     elif args['chp'] and args['<project_name>']:
             change_project(args['<project_name>'])
 
@@ -397,7 +407,7 @@ if __name__ == '__main__':
 
     # Print debug and paths
     elif args['debug']:
-        print __file__
-        print DATA_ROOT
-        print DB_FILE
-        print CONF_FILE
+        print "__file__:", __file__
+        print "Data Dir:", DATA_ROOT
+        print "Database File:", DB_FILE
+        print "Config File:", CONF_FILE
