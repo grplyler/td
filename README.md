@@ -1,7 +1,11 @@
 Before I wrote `td` I experimented with many todo managers. Mac Notes,
-Mac Reminders, Google Tasks, and various Android Apps.
+Mac Reminders, Google Tasks, and various Android Apps. But with everyone
+I have to leave my work in the command line, and change contexts just
+to jot a task for later.
+
 At my job where I worked with a lot a fast changing data, python scripts,
-`csv`, and `json` files, keeping track of what comes next and what stage of the data processing I was in was non trivial.
+`csv`, and `json` files, keeping track of what comes next and what stage of the data processing 
+became non trivial.
 
 Enter `td`.
 
