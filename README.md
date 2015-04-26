@@ -53,6 +53,12 @@ Usage:
     td debug
 ```
 
+This pretty much tells you all you need to know in order to use
+`td` the goal was a very simple command line interface with simple
+and natural looking commands.
+
+But your welcome to read on for more details and demos.
+
 ### Creating a new todo
 
 ```
@@ -70,6 +76,10 @@ $ td list
 ```
 
 ### Marking todo as done
+
+`DONE` todos are highlighted in Green, `PENDING` ones are red.
+Todos can be operated on by their `tid` identification number shown
+on the left.
 
 ```
 $ td done 1
@@ -196,7 +206,8 @@ or `td done <tid> ...`
 Please suggest any improvement you would like to see,
 or fork the code and take a shot yourself!
 
-Thank you for your interest.
+**Thank you for your time and interest!**
+
 
 
 
