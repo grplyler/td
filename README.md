@@ -206,8 +206,7 @@ or `td done <tid> ...`
 Please suggest any improvement you would like to see,
 or fork the code and take a shot yourself!
 
-**Thank you for your time and interest!**
-
+**Thank you for your time and interest**
 
 
 
