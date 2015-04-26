@@ -1,9 +1,12 @@
+
 Before I wrote `td` I experimented with many todo managers. Mac Notes,
 Mac Reminders, Google Tasks, and various Android Apps.
 At my job where I worked with a lot a fast changing data, python scripts,
 `csv`, and `json` files, keeping track of what comes next and what stage of the data processing I was in was non trivial.
 
-Enter `td`.
+## Enter `td`
+
+![](td-cover-image.png)
 
 I wrote `td` as a project based improvement over a previous directory
 based todo manager named `todo`. Being able to keep track of the details as well as the big picture, without ever leaving the command line was a boon
