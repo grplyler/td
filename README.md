@@ -1,14 +1,7 @@
-Imagine never having to leave the comfort of your command line
-to open and app on your know or web browser just to see which bug you
-needed to fix next, or which task you jotted down earlier.
-
-
-
-Before i wrote `td` I experimented with many todo managers. Mac Notes,
-Mac Reminders, Google Tasks, and various Android app.
+Before I wrote `td` I experimented with many todo managers. Mac Notes,
+Mac Reminders, Google Tasks, and various Android Apps.
 At my job where I worked with a lot a fast changing data, python scripts,
-csv, and json files, keeping track of what comes next, what stage of the
-data processing I was in was non trivial.
+`csv`, and `json` files, keeping track of what comes next and what stage of the data processing I was in was non trivial.
 
 Enter `td`.
 
@@ -198,7 +191,7 @@ Some areas that I would like to improve in the near future.
 * Add the ability to operate on multiple todos at once Something like `$ td done 1-4` and `$ td done 1,3,6,24`
 or `td done <tid> ...`
 * Network based, project orient todo manage with a a pluggable database like `MySQL` or `MongoDB`
-* Improve error handleing
+* Improve error handling 
 
 Please suggest any improvement you would like to see,
 or fork the code and take a shot yourself!
