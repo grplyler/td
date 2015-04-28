@@ -58,7 +58,7 @@ def print_todo(todo):
     space = ''
 
     # Correct Formatting for Todo ID's
-    if todo.id > 9:
+    if todo.id > 9 and todo.id < 100:
         space = '  '
     elif todo.id > 99:
         space = ' '
